@@ -5,6 +5,9 @@ const emailInput = document.querySelector("#email");
 const fechaInput = document.querySelector("#fecha");
 const sintomasInput = document.querySelector("#sintomas");
 const formulario = document.querySelector("#formulario-cita");
+const formularioInput = document.querySelector(
+  "#formulario-cita input[type='submit']",
+);
 const contenedorCitas = document.querySelector("#citas");
 
 //EVENTOS
@@ -15,8 +18,11 @@ fechaInput.addEventListener("change", datosCita);
 sintomasInput.addEventListener("change", datosCita);
 formulario.addEventListener("submit", submitFormulario);
 
+let editando = false;
+
 //Objeto de cita
 const citaObjeto = {
+  id: generaId(),
   paciente: "",
   propietario: "",
   email: "",
@@ -78,10 +84,28 @@ class AdmiCitas {
     this.citas = [...this.citas, citas];
     this.mostrar();
   }
+
+  editar(citasActualizadas) {
+    this.citas = this.citas.map((cita) =>
+      cita.id === citasActualizadas.id ? citasActualizadas : cita,
+    );
+    this.mostrar();
+  }
+  eliminar(id) {
+    this.citas = this.citas.filter((cita) => cita.id !== id);
+    this.mostrar();
+  }
+
   mostrar() {
     //LIMPIAR HTML
     while (contenedorCitas.firstChild) {
       contenedorCitas.removeChild(contenedorCitas.firstChild);
+    }
+    //SI HAY CITAS
+    if (this.citas.length === 0) {
+      contenedorCitas.innerHTML =
+        '<p class="text-xl mt-5 mb-10 text-center">No Hay Pacientes</p>';
+      return;
     }
     //GENERANDO CITAS
     this.citas.forEach((cita) => {
@@ -156,9 +180,12 @@ class AdmiCitas {
         "flex",
         "items-center",
         "gap-2",
+        "btn-editar",
       );
       btnEditar.innerHTML =
         'Editar <svg fill="none" class="h-5 w-5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" stroke="currentColor"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>';
+      const clone = structuredClone(cita);
+      btnEditar.onclick = () => cargarEdicion(clone);
       //BOTON ELIMINAR
       const btnEliminar = document.createElement("button");
       btnEliminar.classList.add(
@@ -176,7 +203,7 @@ class AdmiCitas {
       );
       btnEliminar.innerHTML =
         'Eliminar <svg fill="none" class="h-5 w-5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" stroke="currentColor"><path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-
+      btnEliminar.onclick = () => this.eliminar(citas.id);
       //BOTONES EN EL DIV
       const contenedorBotones = document.createElement("DIV");
       contenedorBotones.classList.add("flex", "justify-between", "mt-10");
@@ -197,7 +224,6 @@ class AdmiCitas {
 
 function datosCita(e) {
   citaObjeto[e.target.name] = e.target.value;
-  console.log(citaObjeto);
 }
 
 const citas = new AdmiCitas();
@@ -213,22 +239,60 @@ function submitFormulario(e) {
     });
     return;
   }
-  citas.agregar({ ...citaObjeto });
+
+  if (editando) {
+    citas.editar({ ...citaObjeto });
+    new Notificacion({
+      texto: "Paciente Editado",
+      tipo: "exito",
+    });
+  } else {
+    citas.agregar({ ...citaObjeto });
+    //NOTIFICAION EXITOSA
+    new Notificacion({
+      texto: "Paciente Registrado",
+      tipo: "exito",
+    });
+  }
   formulario.reset();
   reiniciarObjeto();
-
-  //NOTIFICAION EXITOSA
-  new Notificacion({
-    texto: "Paciente Registrado",
-    tipo: "exito",
-  });
+  formularioInput.value = "Registrar Paciente";
+  editando = false;
 }
 
 function reiniciarObjeto() {
   //REINICIA EL OBJETO
-  citaObjeto.paciente = "";
-  citaObjeto.propietario = "";
-  citaObjeto.email = "";
-  citaObjeto.fecha = "";
-  citaObjeto.sintomas = "";
+  //citaObjeto.paciente = "";
+  //citaObjeto.propietario = "";
+  //citaObjeto.email = "";
+  //citaObjeto.fecha = "";
+  //citaObjeto.sintomas = "";
+
+  Object.assign(citaObjeto, {
+    id: generaId(),
+    paciente: "",
+    propietario: "",
+    email: "",
+    fecha: "",
+    sintomas: "",
+  });
+}
+
+//GENERA ID UNICO
+function generaId() {
+  return Math.random().toString(36).substring(2) + Date.now();
+}
+
+function cargarEdicion(cita) {
+  Object.assign(citaObjeto, cita);
+
+  pacienteInput.value = cita.paciente;
+  propietarioInput.value = cita.propietario;
+  emailInput.value = cita.email;
+  fechaInput.value = cita.fecha;
+  sintomasInput.value = cita.sintomas;
+
+  editando = true;
+
+  formularioInput.value = "Guardar Cambios";
 }
